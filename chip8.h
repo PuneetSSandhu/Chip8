@@ -1,7 +1,7 @@
 // This is a CHIP8 emulator written in C.
 
-typedef unsigned char BYTE;
-typedef unsigned short int WORD; 
+typedef unsigned char BYTE; // 8 bits/1 byte
+typedef unsigned short int WORD; // 16 bits/2 bytes
 
 // CHIP8 has 4K of memory
 #define MEM_SIZE 4096
@@ -14,6 +14,10 @@ typedef unsigned short int WORD;
 
 // CHIP8 has 16 levels of stack
 #define STACK 16
+
+// CHIP8 has 64x32 pixels
+#define WIDTH 64
+#define HEIGHT 32
 
 // Stack
 typedef struct Stack{
@@ -31,7 +35,7 @@ typedef struct CHIP8 {
     BYTE sound_timer;
     Stack stack;
     BYTE key[KEYS];
-    BYTE gfx[64 * 32];
+    BYTE gfx[HEIGHT * WIDTH];
     BYTE draw_flag;
 } CHIP8;
 

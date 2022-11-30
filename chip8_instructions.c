@@ -1,5 +1,5 @@
 // Instructions for the Chip-8 CPU
-#include "chip8.h"
+#include "chip8_instructions.h"
 
 // 0NNN - call routine at NNN
 void chip8_0NNN(CHIP8 *chip8, WORD opcode)
@@ -169,23 +169,124 @@ void chip_8XY7(CHIP8 *chip8, WORD opcode){
 void chip8_8XYE(CHIP8 *chip8, WORD opcode){
     BYTE X = opcode & 0x0F00 >> 8;
     // Y not needed
-    chip8->V[0xF] = chip8->V[X] & 0x10;
+    chip8->V[0xF] = chip8->V[X] >> 7;
     chip8->V[X] = chip8->V[X] << 1;
 }
 
 // 9XY0 - skip next instruction if Vx != Vy
+void chip8_9XY0(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    BYTE Y = opcode & 0x00F0 >> 4;
+    chip8->pc += (X!=Y)*2; // no need to branch
+}
+
 // ANNN - set I to NNN
+void chip8_ANNN(CHIP8 *chip8, WORD opcode){
+    chip8->I = opcode & 0x0FFF;
+}
+
 // BNNN - jump to NNN + V0
+void chip8_BNNN(CHIP8 *chip8, WORD opcode){
+    chip8->pc = (opcode & 0x0FFF) + chip8->V[0];
+}
+
 // CXNN - set Vx to a random number & NN
-// DXYN - draw sprite at (Vx, Vy) with width 8 and height N
+void chip8_CXNN(CHIP8 *chip8, WORD opcode){
+    WORD NN = opcode & 0x00FF;
+    BYTE X = opcode & 0x0F00 >> 8;
+    chip8->V[X] = rand() & NN;
+}
+
+// DXYN - draw sprite at (Vx, Vy) with width 8 and height N, sprite located at I
+// TODO: Verify
+void chip8_DXYN(CHIP8 * chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    BYTE Y = opcode & 0x00F0 >> 4;
+    BYTE Vx = chip8->V[X];
+    BYTE Vy = chip8->V[Y];
+    BYTE N = opcode & 0x000F;
+    for(int i = 0; i < N; i++){
+        BYTE spriteLine = chip8->memory[chip8->I+N];
+        for(int j = 0; j < 8; j++){
+            chip8->gfx[(Vx + i)+(Vy + j)*HEIGHT] = (spriteLine >> (8 - j)) & 0x0001;
+        }
+    }
+}
+
 // EX9E - skip next instruction if key with the value of Vx is pressed
+void chip8_EX9E(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    chip8->pc += (chip8->key[chip8->V[X]] == 1) * 2;
+}
+
 // EXA1 - skip next instruction if key with the value of Vx is not pressed
+void chip8_EXA1(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    chip8->pc += (chip8->key[chip8->V[X]] != 1) * 2;
+}
+
 // FX07 - set Vx to the value of the delay timer
+void chip8_FX07(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    chip8->V[X] = chip8->delay_timer;
+}
+
 // FX0A - wait for a key press, store the value of the key in Vx
+void chip8_FX0A(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    for(int i = 0; i < 16; i++){
+        if(chip8->key[i] == 1){
+            chip8->V[X] = i;
+            return;
+        }
+    }
+    chip8->pc -= 2; // wait for key press
+}
 // FX15 - set the delay timer to Vx
+void chip8_FX15(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    chip8->delay_timer = chip8->V[X];
+}
+
 // FX18 - set the sound timer to Vx
+void chip8_FX18(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    chip8->sound_timer = chip8->V[X];
+}
+
 // FX1E - add Vx to I
+void chip8_FX1E(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    chip8->I += chip8->V[X];
+}
+
 // FX29 - set I to the location of the sprite for the character in Vx
+void chip8_FX29(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    chip8->I = chip8->V[X] * 5; // Each sprite is 5 bytes long
+}
+
 // FX33 - store the binary-coded decimal representation of Vx at I, I+1, I+2
+void chip8_FX33(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    BYTE Vx = chip8->V[X];
+    chip8->memory[chip8->I] = Vx / 100;
+    chip8->memory[chip8->I+1] = (Vx / 10) % 10;
+    chip8->memory[chip8->I+2] = (Vx % 100) % 10;
+}
+
 // FX55 - store V0 to Vx in memory starting at address I
+void chip8_FX55(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    for(int i = 0; i < X+1; i++){
+        chip8->memory[chip8->I+i] = chip8->V[i];
+    }
+}
+
 // FX65 - fill V0 to Vx with values from memory starting at address I
+void chip8_FX65(CHIP8 *chip8, WORD opcode){
+    BYTE X = opcode & 0x0F00 >> 8;
+    for(int i = 0; i < X+1; i++){
+        chip8->V[i] = chip8->memory[chip8->I+i];
+    }
+}
