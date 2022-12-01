@@ -1,9 +1,9 @@
 // This is a CHIP8 emulator written in C.
 
-#include "chip8.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "chip8_instructions.c"
 
 // Stack functions
 void stack_push(Stack *stack, WORD value)
@@ -16,6 +16,50 @@ WORD stack_pop(Stack *stack)
 {
     stack->sp--;
     return stack->stack[stack->sp];
+}
+
+// DEBUGGING FUNCTIONS
+
+void diagnose(CHIP8 *chip8, WORD opcode)
+{
+    printf("Opcode: 0x%04x\n", opcode);
+    printf("  pc: 0x%x\n", chip8->pc);
+    printf("  sp: 0x%x\n", chip8->stack.sp);
+    printf("  I: 0x%04x\n", chip8->I);
+    printf("  V0: 0x%x\n", chip8->V[0]);
+    printf("  V1: 0x%x\n", chip8->V[1]);
+    printf("  V2: 0x%x\n", chip8->V[2]);
+    printf("  V3: 0x%x\n", chip8->V[3]);
+    printf("  V4: 0x%x\n", chip8->V[4]);
+    printf("  V5: 0x%x\n", chip8->V[5]);
+    printf("  V6: 0x%x\n", chip8->V[6]);
+    printf("  V7: 0x%x\n", chip8->V[7]);
+    printf("  V8: 0x%x\n", chip8->V[8]);
+    printf("  V9: 0x%x\n", chip8->V[9]);
+    printf("  VA: 0x%x\n", chip8->V[10]);
+    printf("  VB: 0x%x\n", chip8->V[11]);
+    printf("  VC: 0x%x\n", chip8->V[12]);
+    printf("  VD: 0x%x\n", chip8->V[13]);
+    printf("  VE: 0x%x\n", chip8->V[14]);
+    printf("  VF: 0x%x\n", chip8->V[15]);
+    printf(" delay_timer: 0x%x\n", chip8->delay_timer);
+    printf(" sound_timer: 0x%x\n", chip8->sound_timer);
+    // print stack
+    printf(" stack: \n");
+    for (int i = 0; i < STACK; i++)
+    {
+        printf("0x%02x\n", chip8->stack.stack[i]);
+    }
+
+    // dump memory
+    printf(" memory: \n");
+    for (int i = 1; i < MEM_SIZE+1; i++)
+    {
+        printf("0x%02x ", chip8->memory[i-1]);
+        if (i % 16 == 0)
+            printf("\n");
+    }
+    exit(1);
 }
 
 // Get the size of a file
@@ -54,6 +98,10 @@ void chip8_init(CHIP8 *chip8)
     // clear the keys
     memset(chip8->key, 0, sizeof(chip8->key));
 
+    // load the fontset
+    memset(&chip8->memory[0x50], 0, 80);
+    memcpy(&chip8->memory[0x50], chip8_fontset, 80);
+
     // Print initialization message
     printf("CHIP8 initialized\n");
 }
@@ -82,18 +130,157 @@ void chip8_emulate_cycle(CHIP8 *chip8)
 {
     // Fetch opcode (OPCODES are 2 bytes so we need to shift the first byte by 8 and then or the second byte with the shifted first byte)
     WORD opcode = chip8->memory[chip8->pc] << 8 | chip8->memory[chip8->pc + 1];
-    chip8->pc += 2;
-    if (chip8->pc >= 0xFFF || opcode == 0x0000)
-    {
-        exit(1);
-    }
-    printf("opcode: %04x\n", opcode);
-
+    // printf("opcode: 0x%04x\n", opcode);
+    BYTE instruction = (opcode & 0xF000) >> 12; // get the first 4 bits of the opcode
     // Decode opcode
-
-    // Execute opcode
+    switch (instruction)
+    {
+    case 0x0: // 0NNN
+        switch (opcode)
+        {
+        case 0x00E0: // 00E0
+            chip8_00E0(chip8);
+            break;
+        case 0x00EE: // 00EE
+            chip8_00EE(chip8);
+            break;
+        default:
+            printf("Unknown opcode: 0x%X\n", opcode);
+            diagnose(chip8, opcode);
+            break;
+        }
+        break;
+    case 0x1: // 1NNN
+        chip8_1NNN(chip8, opcode);
+        break;
+    case 0x2: // 2NNN
+        chip8_2NNN(chip8, opcode);
+        break;
+    case 0x3: // 3XNN
+        chip8_3XNN(chip8, opcode);
+        break;
+    case 0x4: // 4XNN
+        chip8_4XNN(chip8, opcode);
+        break;
+    case 0x5: // 5XY0
+        chip8_5XY0(chip8, opcode);
+        break;
+    case 0x6: // 6XNN
+        chip8_6XNN(chip8, opcode);
+        break;
+    case 0x7: // 7XNN
+        chip8_7XNN(chip8, opcode);
+        break;
+    case 0x8: // 8XYN
+        switch (opcode & 0x000F)
+        {
+        case 0x0: // 8XY0
+            chip8_8XY0(chip8, opcode);
+            break;
+        case 0x1: // 8XY1
+            chip8_8XY1(chip8, opcode);
+            break;
+        case 0x2: // 8XY2
+            chip8_8XY2(chip8, opcode);
+            break;
+        case 0x3: // 8XY3
+            chip8_8XY3(chip8, opcode);
+            break;
+        case 0x4: // 8XY4
+            chip8_8XY4(chip8, opcode);
+            break;
+        case 0x5: // 8XY5
+            chip8_8XY5(chip8, opcode);
+            break;
+        case 0x6: // 8XY6
+            chip8_8XY6(chip8, opcode);
+            break;
+        case 0x7: // 8XY7
+            chip8_8XY7(chip8, opcode);
+            break;
+        case 0xE: // 8XYE
+            chip8_8XYE(chip8, opcode);
+            break;
+        default:
+            printf("Unknown opcode: 0x%X\n", opcode);
+            diagnose(chip8, opcode);
+            break;
+        }
+        break;
+    case 0x9: // 9XY0
+        chip8_9XY0(chip8, opcode);
+        break;
+    case 0xA: // ANNN
+        chip8_ANNN(chip8, opcode);
+        break;
+    case 0xB: // BNNN
+        chip8_BNNN(chip8, opcode);
+        break;
+    case 0xC: // CXNN
+        chip8_CXNN(chip8, opcode);
+        break;
+    case 0xD: // DXYN
+        chip8_DXYN(chip8, opcode);
+        break;
+    case 0xE: // EXNN
+        switch (opcode & 0x00FF)
+        {
+        case 0x9E: // EX9E
+            chip8_EX9E(chip8, opcode);
+            break;
+        case 0xA1: // EXA1
+            chip8_EXA1(chip8, opcode);
+            break;
+        default:
+            printf("Unknown opcode: 0x%X\n", opcode);
+            diagnose(chip8, opcode);
+            break;
+        }
+        break;
+    case 0xF: // FXNN
+        switch (opcode & 0x00FF)
+        {
+        case 0x07: // FX07
+            chip8_FX07(chip8, opcode);
+            break;
+        case 0x0A: // FX0A
+            chip8_FX0A(chip8, opcode);
+            break;
+        case 0x15: // FX15
+            chip8_FX15(chip8, opcode);
+            break;
+        case 0x18: // FX18
+            chip8_FX18(chip8, opcode);
+            break;
+        case 0x1E: // FX1E
+            chip8_FX1E(chip8, opcode);
+            break;
+        case 0x29: // FX29
+            chip8_FX29(chip8, opcode);
+            break;
+        case 0x33: // FX33
+            chip8_FX33(chip8, opcode);
+            break;
+        case 0x55: // FX55
+            chip8_FX55(chip8, opcode);
+            break;
+        case 0x65: // FX65
+            chip8_FX65(chip8, opcode);
+            break;
+        default:
+            printf("Unknown opcode: 0x%X\n", opcode);
+            diagnose(chip8, opcode);
+            break;
+        }
+        break;
+    default:
+        printf("Unknown opcode: 0x%X\n", opcode);
+        diagnose(chip8, opcode);
+        break;
+    }
 
     // Update timers
+    chip8->pc += 2;
 }
 
 // Set the keys

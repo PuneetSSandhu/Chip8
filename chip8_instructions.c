@@ -19,6 +19,7 @@ void chip8_00EE(CHIP8 *chip8)
 {
     // The address of the caller of the subroutine is stored in the stack
     chip8->pc = stack_pop(&chip8->stack);
+
 }
 
 // 1NNN - jump to address NNN
@@ -116,7 +117,7 @@ void chip8_8XY3(CHIP8 *chip8, WORD opcode){
 }
 
 // 8XY4 - add Vy to Vx, set VF 
-void chip8_8XY1(CHIP8 *chip8, WORD opcode){
+void chip8_8XY4(CHIP8 *chip8, WORD opcode){
     BYTE X = opcode & 0x0F00 >> 8;
     BYTE Y = opcode & 0x00F0 >> 4;
 
@@ -153,7 +154,7 @@ void chip8_8XY6(CHIP8 * chip8, WORD opcode){
 }
 
 // 8XY7 - Set Vx to Vy - Vx and Vf to 0 is there is a borrow else 1
-void chip_8XY7(CHIP8 *chip8, WORD opcode){
+void chip8_8XY7(CHIP8 *chip8, WORD opcode){
     BYTE X = opcode & 0x0F00 >> 8;
     BYTE Y = opcode & 0x00F0 >> 4;
 
@@ -263,7 +264,7 @@ void chip8_FX1E(CHIP8 *chip8, WORD opcode){
 // FX29 - set I to the location of the sprite for the character in Vx
 void chip8_FX29(CHIP8 *chip8, WORD opcode){
     BYTE X = opcode & 0x0F00 >> 8;
-    chip8->I = chip8->V[X] * 5; // Each sprite is 5 bytes long
+    chip8->I = chip8->memory[(chip8->V[X]*5)+0x50];
 }
 
 // FX33 - store the binary-coded decimal representation of Vx at I, I+1, I+2
