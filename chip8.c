@@ -5,6 +5,9 @@
 #include <string.h>
 #include "chip8_instructions.c"
 
+// SDL2
+#include <SDL2/SDL.h>
+
 // Stack functions
 void stack_push(Stack *stack, WORD value)
 {
@@ -53,9 +56,9 @@ void diagnose(CHIP8 *chip8, WORD opcode)
 
     // dump memory
     printf(" memory: \n");
-    for (int i = 1; i < MEM_SIZE+1; i++)
+    for (int i = 1; i < MEM_SIZE + 1; i++)
     {
-        printf("0x%02x ", chip8->memory[i-1]);
+        printf("0x%02x ", chip8->memory[i - 1]);
         if (i % 16 == 0)
             printf("\n");
     }
@@ -289,6 +292,34 @@ void chip8_set_keys(CHIP8 *chip8)
     // TODO
 }
 
+// Draw the screen
+void chip8_draw_screen(CHIP8 *chip8, SDL_Renderer *renderer)
+{
+    // Clear the screen
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
+    // Draw the pixels
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    for (int y = 0; y < 32; y++)
+    {
+        for (int x = 0; x < 64; x++)
+        {
+            if (chip8->gfx[y * 64 + x] == 1)
+            {
+                printf("x: %d, y: %d" , x, y);
+                // set the pixel
+                SDL_Rect rect = {x * 10, y * 10, 10, 10};
+                SDL_RenderFillRect(renderer, &rect);
+
+            }
+        }
+    }
+
+    // Update the screen
+    SDL_RenderPresent(renderer);
+}
+
 // Main game loop
 int main(int argc, char *argv[])
 {
@@ -301,10 +332,39 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    while (1)
+    // Initialize SDL
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Window *window = SDL_CreateWindow("CHIP-8 Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 320, 0);
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 64, 32);
+
+    // Main loop
+    int quit = 0;
+
+    while (!quit)
     {
+        // Handle events
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+        {
+            switch (event.type)
+            {
+            case SDL_QUIT:
+                quit = 1;
+                break;
+            }
+        }
+
+        // Emulate cycle
         chip8_emulate_cycle(&chip8);
-        chip8_set_keys(&chip8);
+
+        // Draw the screen
+        chip8_draw_screen(&chip8, renderer);
     }
-    return 0;
+
+    // Cleanup
+    SDL_DestroyTexture(texture);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 }

@@ -1,6 +1,20 @@
 // Instructions for the Chip-8 CPU
 #include "chip8_instructions.h"
 
+// DEBUGGING FUNCTIONS
+void GFX_DEBUG(CHIP8 *chip8)
+{
+    printf("GFX: \n");
+    for (int i = 0; i < HEIGHT*WIDTH; i++)
+    {
+        printf("%d ", chip8->gfx[i]);
+        if (i % 64 == 0)
+            printf("\n");
+    }
+    // enter to continue
+    getchar();
+}
+
 // 0NNN - call routine at NNN
 void chip8_0NNN(CHIP8 *chip8, WORD opcode)
 {
@@ -124,7 +138,7 @@ void chip8_8XY4(CHIP8 *chip8, WORD opcode){
     chip8->V[(int)X] += chip8->V[(int)Y];
     int sum = X + Y;
 
-    if(sum > sum & 0xFFFF){ // there is a carry
+    if(sum > (sum & 0xFFFF)){ // there is a carry
         chip8->V[0xF] = 1;
     } else {
         chip8->V[0xF] = 0;
@@ -208,10 +222,14 @@ void chip8_DXYN(CHIP8 * chip8, WORD opcode){
     BYTE N = opcode & 0x000F;
     for(int i = 0; i < N; i++){
         BYTE spriteLine = chip8->memory[chip8->I+N];
+        printf("I: %d, N: %d, spriteLine: %d", chip8->I, N, spriteLine);
         for(int j = 0; j < 8; j++){
-            chip8->gfx[(Vx + i)+(Vy + j)*HEIGHT] = (spriteLine >> (8 - j)) & 0x0001;
+            // chip8->gfx[(Vy + i)+(Vx + j)*HEIGHT] = (spriteLine >> (8 - j)) & 0x0001;
+            chip8->gfx[(Vy + i)+(Vx + j)*HEIGHT] = 0x0001;
         }
     }
+    chip8->draw_flag = 1;
+    GFX_DEBUG(chip8);
 }
 
 // EX9E - skip next instruction if key with the value of Vx is pressed
