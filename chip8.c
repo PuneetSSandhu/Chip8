@@ -84,7 +84,6 @@ int chip8_load(CHIP8 *chip8, char *filename)
     {
         return 1;
     }
-    // diagnose(chip8, 0);
     return 0;
 }
 
@@ -287,6 +286,7 @@ int main(int argc, char *argv[])
 
     // Main loop
     int quit = 0;
+    chip8.memory[511] = 0x04;
     printf("Test: %d\n", chip8.memory[511]);
     while (!quit)
     {

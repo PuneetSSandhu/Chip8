@@ -141,7 +141,7 @@ void chip8_8XY5(CHIP8 *chip8, WORD opcode){
 
     chip8->V[X] -= chip8->V[Y];
 
-    if(chip8->V[X] > chip8->V[Y]){
+    if(chip8->V[X] < chip8->V[Y]){
         chip8->V[0xF] = 0;
     } else {
         chip8->V[0xF] = 1;
@@ -152,29 +152,31 @@ void chip8_8XY5(CHIP8 *chip8, WORD opcode){
 void chip8_8XY6(CHIP8 * chip8, WORD opcode){
     BYTE X = (opcode & 0x0F00) >> 8;
     // Y not needed
-    chip8->V[0xF] = chip8->V[X] & 0x01;
-    chip8->V[X] = chip8->V[X] >> 1;
+    BYTE digit = chip8->V[X] & 0x01;
+    chip8->V[X] >>= 1;
+    chip8->V[0xF] = digit;
 }
 
 // 8XY7 - Set Vx to Vy - Vx and Vf to 0 is there is a borrow else 1
 void chip8_8XY7(CHIP8 *chip8, WORD opcode){
     BYTE X = (opcode & 0x0F00) >> 8;
     BYTE Y = (opcode & 0x00F0) >> 4;
+    chip8->V[X] = chip8->V[Y] - chip8->V[X];
 
     if(chip8->V[X] > chip8->V[Y]){
         chip8->V[0xF] = 0;
     } else {
         chip8->V[0xF] = 1;
     }
-    chip8->V[X] = chip8->V[Y] - chip8->V[X];
 }
 
 // 8XYE - store the most significant bit of Vx on Vf and shift Vx right by one
 void chip8_8XYE(CHIP8 *chip8, WORD opcode){
     BYTE X = (opcode & 0x0F00) >> 8;
     // Y not needed
-    chip8->V[0xF] = chip8->V[X] >> 7;
-    chip8->V[X] = chip8->V[X] << 1;
+    BYTE digit = chip8->V[X] >> 7;
+    chip8->V[X] <<= 1;
+    chip8->V[0xF] = digit;
 }
 
 // 9XY0 - skip next instruction if Vx != Vy
