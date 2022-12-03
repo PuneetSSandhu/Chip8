@@ -42,7 +42,6 @@ typedef struct CHIP8 {
 void chip8_init(struct CHIP8 *chip8);
 int chip8_load(struct CHIP8 *chip8, char *filename);
 void chip8_emulate_cycle(struct CHIP8 *chip8);
-void chip8_set_keys(struct CHIP8 *chip8);
 
 
 // Stack functions 

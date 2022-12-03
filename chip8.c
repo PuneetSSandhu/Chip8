@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "chip8_instructions.c"
+#include "debug.c"
+#include <time.h>
 
 // SDL2
 #include <SDL2/SDL.h>
@@ -19,50 +21,6 @@ WORD stack_pop(Stack *stack)
 {
     stack->sp--;
     return stack->stack[stack->sp];
-}
-
-// DEBUGGING FUNCTIONS
-
-void diagnose(CHIP8 *chip8, WORD opcode)
-{
-    printf("Opcode: 0x%04x\n", opcode);
-    printf("  pc: 0x%x\n", chip8->pc);
-    printf("  sp: 0x%x\n", chip8->stack.sp);
-    printf("  I: 0x%04x\n", chip8->I);
-    printf("  V0: 0x%x\n", chip8->V[0]);
-    printf("  V1: 0x%x\n", chip8->V[1]);
-    printf("  V2: 0x%x\n", chip8->V[2]);
-    printf("  V3: 0x%x\n", chip8->V[3]);
-    printf("  V4: 0x%x\n", chip8->V[4]);
-    printf("  V5: 0x%x\n", chip8->V[5]);
-    printf("  V6: 0x%x\n", chip8->V[6]);
-    printf("  V7: 0x%x\n", chip8->V[7]);
-    printf("  V8: 0x%x\n", chip8->V[8]);
-    printf("  V9: 0x%x\n", chip8->V[9]);
-    printf("  VA: 0x%x\n", chip8->V[10]);
-    printf("  VB: 0x%x\n", chip8->V[11]);
-    printf("  VC: 0x%x\n", chip8->V[12]);
-    printf("  VD: 0x%x\n", chip8->V[13]);
-    printf("  VE: 0x%x\n", chip8->V[14]);
-    printf("  VF: 0x%x\n", chip8->V[15]);
-    printf(" delay_timer: 0x%x\n", chip8->delay_timer);
-    printf(" sound_timer: 0x%x\n", chip8->sound_timer);
-    // print stack
-    printf(" stack: \n");
-    for (int i = 0; i < STACK; i++)
-    {
-        printf("0x%02x\n", chip8->stack.stack[i]);
-    }
-
-    // dump memory
-    printf(" memory: \n");
-    for (int i = 1; i < MEM_SIZE + 1; i++)
-    {
-        printf("0x%02x ", chip8->memory[i - 1]);
-        if (i % 16 == 0)
-            printf("\n");
-    }
-    exit(1);
 }
 
 // Get the size of a file
@@ -102,11 +60,12 @@ void chip8_init(CHIP8 *chip8)
     memset(chip8->key, 0, sizeof(chip8->key));
 
     // load the fontset
-    memset(&chip8->memory[0x50], 0, 80);
-    memcpy(&chip8->memory[0x50], chip8_fontset, 80);
+    memset(&chip8->memory[0], 0, 80);
+    memcpy(&chip8->memory[0], chip8_fontset, 80);
 
     // Print initialization message
     printf("CHIP8 initialized\n");
+
 }
 
 // Load the ROM into memory
@@ -125,6 +84,7 @@ int chip8_load(CHIP8 *chip8, char *filename)
     {
         return 1;
     }
+    // diagnose(chip8, 0);
     return 0;
 }
 
@@ -132,7 +92,8 @@ int chip8_load(CHIP8 *chip8, char *filename)
 void chip8_emulate_cycle(CHIP8 *chip8)
 {
     // Fetch opcode (OPCODES are 2 bytes so we need to shift the first byte by 8 and then or the second byte with the shifted first byte)
-    WORD opcode = chip8->memory[chip8->pc] << 8 | chip8->memory[chip8->pc + 1];
+    WORD opcode = (chip8->memory[chip8->pc] << 8) | chip8->memory[chip8->pc + 1];
+    chip8->pc += 2;
     // printf("opcode: 0x%04x\n", opcode);
     BYTE instruction = (opcode & 0xF000) >> 12; // get the first 4 bits of the opcode
     // Decode opcode
@@ -149,7 +110,6 @@ void chip8_emulate_cycle(CHIP8 *chip8)
             break;
         default:
             printf("Unknown opcode: 0x%X\n", opcode);
-            diagnose(chip8, opcode);
             break;
         }
         break;
@@ -206,7 +166,6 @@ void chip8_emulate_cycle(CHIP8 *chip8)
             break;
         default:
             printf("Unknown opcode: 0x%X\n", opcode);
-            diagnose(chip8, opcode);
             break;
         }
         break;
@@ -236,7 +195,6 @@ void chip8_emulate_cycle(CHIP8 *chip8)
             break;
         default:
             printf("Unknown opcode: 0x%X\n", opcode);
-            diagnose(chip8, opcode);
             break;
         }
         break;
@@ -272,24 +230,13 @@ void chip8_emulate_cycle(CHIP8 *chip8)
             break;
         default:
             printf("Unknown opcode: 0x%X\n", opcode);
-            diagnose(chip8, opcode);
             break;
         }
         break;
     default:
         printf("Unknown opcode: 0x%X\n", opcode);
-        diagnose(chip8, opcode);
         break;
     }
-
-    // Update timers
-    chip8->pc += 2;
-}
-
-// Set the keys
-void chip8_set_keys(CHIP8 *chip8)
-{
-    // TODO
 }
 
 // Draw the screen
@@ -307,7 +254,6 @@ void chip8_draw_screen(CHIP8 *chip8, SDL_Renderer *renderer)
         {
             if (chip8->gfx[y * 64 + x] == 1)
             {
-                printf("x: %d, y: %d" , x, y);
                 // set the pixel
                 SDL_Rect rect = {x * 10, y * 10, 10, 10};
                 SDL_RenderFillRect(renderer, &rect);
@@ -325,6 +271,7 @@ int main(int argc, char *argv[])
 {
     CHIP8 chip8;
     chip8_init(&chip8);
+
     int load = chip8_load(&chip8, argv[1]);
     if (load == 1)
     {
@@ -334,13 +281,13 @@ int main(int argc, char *argv[])
 
     // Initialize SDL
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window *window = SDL_CreateWindow("CHIP-8 Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 320, 0);
+    SDL_Window *window = SDL_CreateWindow("CHIP-8 Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH*10, HEIGHT*10, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
-    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 64, 32);
+    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
     // Main loop
     int quit = 0;
-
+    printf("Test: %d\n", chip8.memory[511]);
     while (!quit)
     {
         // Handle events
@@ -349,6 +296,116 @@ int main(int argc, char *argv[])
         {
             switch (event.type)
             {
+            // key pressed
+            case SDL_KEYDOWN:
+                printf("Key pressed: %d\n", event.key.keysym.sym);
+                switch (event.key.keysym.sym)
+                {
+                case SDLK_1:
+                    chip8.key[0x1] = 1;
+                    break;
+                case SDLK_2:
+                    chip8.key[0x2] = 1;
+                    break;
+                case SDLK_3:
+                    chip8.key[0x3] = 1;
+                    break;
+                case SDLK_4:
+                    chip8.key[0xC] = 1;
+                    break;
+                case SDLK_q:
+                    chip8.key[0x4] = 1;
+                    break;
+                case SDLK_w:
+                    chip8.key[0x5] = 1;
+                    break;
+                case SDLK_e:
+                    chip8.key[0x6] = 1;
+                    break;
+                case SDLK_r:
+                    chip8.key[0xD] = 1;
+                    break;
+                case SDLK_a:
+                    chip8.key[0x7] = 1;
+                    break;
+                case SDLK_s:
+                    chip8.key[0x8] = 1;
+                    break;
+                case SDLK_d:
+                    chip8.key[0x9] = 1;
+                    break;
+                case SDLK_f:
+                    chip8.key[0xE] = 1;
+                    break;
+                case SDLK_z:
+                    chip8.key[0xA] = 1;
+                    break;
+                case SDLK_x:
+                    chip8.key[0x0] = 1;
+                    break;
+                case SDLK_c:
+                    chip8.key[0xB] = 1;
+                    break;
+                case SDLK_v:
+                    chip8.key[0xF] = 1;
+                    break;
+                }
+                break;
+            // key released
+            case SDL_KEYUP:
+                printf("Key released: %d\n", event.key.keysym.sym);
+                switch (event.key.keysym.sym)
+                {
+                case SDLK_1:
+                    chip8.key[0x1] = 0;
+                    break;
+                case SDLK_2:
+                    chip8.key[0x2] = 0;
+                    break;
+                case SDLK_3:
+                    chip8.key[0x3] = 0;
+                    break;
+                case SDLK_4:
+                    chip8.key[0xC] = 0;
+                    break;
+                case SDLK_q:
+                    chip8.key[0x4] = 0;
+                    break;
+                case SDLK_w:
+                    chip8.key[0x5] = 0;
+                    break;
+                case SDLK_e:
+                    chip8.key[0x6] = 0;
+                    break;
+                case SDLK_r:
+                    chip8.key[0xD] = 0;
+                    break;
+                case SDLK_a:
+                    chip8.key[0x7] = 0;
+                    break;
+                case SDLK_s:
+                    chip8.key[0x8] = 0;
+                    break;
+                case SDLK_d:
+                    chip8.key[0x9] = 0;
+                    break;
+                case SDLK_f:
+                    chip8.key[0xE] = 0;
+                    break;
+                case SDLK_z:
+                    chip8.key[0xA] = 0;
+                    break;
+                case SDLK_x:
+                    chip8.key[0x0] = 0;
+                    break;
+                case SDLK_c:
+                    chip8.key[0xB] = 0;
+                    break;
+                case SDLK_v:
+                    chip8.key[0xF] = 0;
+                    break;
+                }
+                break;
             case SDL_QUIT:
                 quit = 1;
                 break;
@@ -359,7 +416,14 @@ int main(int argc, char *argv[])
         chip8_emulate_cycle(&chip8);
 
         // Draw the screen
-        chip8_draw_screen(&chip8, renderer);
+        if(chip8.draw_flag)
+        {
+            chip8_draw_screen(&chip8, renderer);
+            chip8.draw_flag = 0;
+        }
+
+        // Sleep
+        SDL_Delay(2);
     }
 
     // Cleanup
