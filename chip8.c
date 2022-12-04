@@ -6,9 +6,11 @@
 #include "chip8_instructions.c"
 #include "debug.c"
 #include <time.h>
+#include <unistd.h>
 
 // SDL2
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 
 // Stack functions
 void stack_push(Stack *stack, WORD value)
@@ -65,7 +67,6 @@ void chip8_init(CHIP8 *chip8)
 
     // Print initialization message
     printf("CHIP8 initialized\n");
-
 }
 
 // Load the ROM into memory
@@ -236,6 +237,20 @@ void chip8_emulate_cycle(CHIP8 *chip8)
         printf("Unknown opcode: 0x%X\n", opcode);
         break;
     }
+
+    // Update timers
+    if (chip8->delay_timer > 0)
+    {
+        chip8->delay_timer--;
+    }
+    if (chip8->sound_timer > 0)
+    {
+        if (chip8->sound_timer == 1)
+        {
+            printf("BEEP!\n");
+        }
+        chip8->sound_timer--;
+    }
 }
 
 // Draw the screen
@@ -256,7 +271,6 @@ void chip8_draw_screen(CHIP8 *chip8, SDL_Renderer *renderer)
                 // set the pixel
                 SDL_Rect rect = {x * 10, y * 10, 10, 10};
                 SDL_RenderFillRect(renderer, &rect);
-
             }
         }
     }
@@ -279,17 +293,21 @@ int main(int argc, char *argv[])
     }
 
     // Initialize SDL
-    SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window *window = SDL_CreateWindow("CHIP-8 Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH*10, HEIGHT*10, 0);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+    SDL_Window *window = SDL_CreateWindow("CHIP-8 Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH * 10, HEIGHT * 10, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
     SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
     // Main loop
     int quit = 0;
+    int diff;
     chip8.memory[511] = 0x04;
+    // get the current time and strore it
+    clock_t time;
     printf("Test: %d\n", chip8.memory[511]);
     while (!quit)
     {
+        time = clock() + CLOCKS_PER_SEC/3600;
         // Handle events
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -298,7 +316,6 @@ int main(int argc, char *argv[])
             {
             // key pressed
             case SDL_KEYDOWN:
-                printf("Key pressed: %d\n", event.key.keysym.sym);
                 switch (event.key.keysym.sym)
                 {
                 case SDLK_1:
@@ -353,7 +370,6 @@ int main(int argc, char *argv[])
                 break;
             // key released
             case SDL_KEYUP:
-                printf("Key released: %d\n", event.key.keysym.sym);
                 switch (event.key.keysym.sym)
                 {
                 case SDLK_1:
@@ -416,14 +432,18 @@ int main(int argc, char *argv[])
         chip8_emulate_cycle(&chip8);
 
         // Draw the screen
-        if(chip8.draw_flag)
+        if (chip8.draw_flag)
         {
             chip8_draw_screen(&chip8, renderer);
             chip8.draw_flag = 0;
         }
 
-        // Sleep
-        SDL_Delay(2);
+        // Delay
+        diff = clock() - time;
+        if (diff > 0)
+        {
+            SDL_Delay(diff/60);
+        }
     }
 
     // Cleanup
