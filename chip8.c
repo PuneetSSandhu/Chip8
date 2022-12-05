@@ -4,13 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include "chip8_instructions.c"
-#include "debug.c"
 #include <time.h>
 #include <unistd.h>
 #include <math.h>
 // SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
+
+Mix_Chunk *beep;
 
 // Stack functions
 void stack_push(Stack *stack, WORD value)
@@ -33,6 +34,17 @@ long get_file_size(FILE *file)
     size = ftell(file);
     rewind(file);
     return size;
+}
+
+void cap_fps(Uint32 start)
+{
+    //     printf("1000/fps = %d\n", 1000/fps);
+    //     printf("SDL_GetTicks() - start = %d\n", SDL_GetTicks() - start);
+    //     SDL_Delay(100);
+    if (100/ fps > SDL_GetTicks() - start)
+    {
+        SDL_Delay(100/ fps - (SDL_GetTicks() - start));
+    }
 }
 
 /////////////////////////////////////////
@@ -247,7 +259,7 @@ void chip8_emulate_cycle(CHIP8 *chip8)
     {
         if (chip8->sound_timer == 1)
         {
-            printf("BEEP!\n");
+            Mix_PlayChannel(-1, beep, 0);
         }
         chip8->sound_timer--;
     }
@@ -256,16 +268,18 @@ void chip8_emulate_cycle(CHIP8 *chip8)
 // Draw the screen
 void chip8_draw_screen(CHIP8 *chip8, SDL_Renderer *renderer, SDL_Texture *texture)
 {
+    SDL_RenderClear(renderer);
+    // wait for the renderer to be ready
+
     uint32_t pixels[WIDTH * HEIGHT];
     for (int i = 0; i < WIDTH * HEIGHT; i++)
     {
         uint8_t pixel = chip8->gfx[i];
-        pixels[i] = pixel ? 0xFF : 0x00;
+        pixels[i] = (0x00FFFFFF * pixel) | 0xFF000000;
     }
 
     // Update SDL texture
     SDL_UpdateTexture(texture, NULL, pixels, 64 * sizeof(Uint32));
-    SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 }
@@ -286,16 +300,18 @@ int main(int argc, char *argv[])
     // Initialize SDL
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_Window *window = SDL_CreateWindow("CHIP-8 Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH * 10, HEIGHT * 10, 0);
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
     SDL_RenderSetLogicalSize(renderer, WIDTH, HEIGHT);
     SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
-
+    
+    // Initialize audio
+    Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 1, 4096);
+    beep = Mix_LoadWAV("beep.wav");
+    Mix_VolumeChunk(beep, MIX_MAX_VOLUME/5);
     // Main loop
     int quit = 0;
-    int delay = 6;
     chip8.memory[511] = 0x04;
-    int start, frame_time;
-    float elapsed_time, fps = 0;
+    int start;
     // get the current time and strore it
     printf("Test: %d\n", chip8.memory[511]);
     while (!quit)
@@ -359,15 +375,6 @@ int main(int argc, char *argv[])
                 case SDLK_v:
                     chip8.key[0xF] = 1;
                     break;
-                case SDLK_RIGHTBRACKET:
-                    delay += 1;
-                    printf("Delay: %d\n Time: %f\n", delay, elapsed_time * 1000000);
-                    break;
-                case SDLK_LEFTBRACKET:
-                    if (delay > 0)
-                        delay -= 1;
-                    printf("Delay: %d\n Time: %f\n", delay, elapsed_time * 1000000);
-                    break;
                 }
                 break;
             // key released
@@ -430,26 +437,23 @@ int main(int argc, char *argv[])
             }
         }
 
-        Uint64 start = SDL_GetPerformanceCounter();
+        Uint32 start = SDL_GetTicks();
 
         // Emulate cycle
         chip8_emulate_cycle(&chip8);
 
-        Uint64 end = SDL_GetPerformanceCounter();
-        elapsed_time = (end - start) / (float)SDL_GetPerformanceFrequency() * 1000;
-        fps = 1000 / elapsed_time;
-        SDL_Delay(delay);
-        // Draw the screen
+        cap_fps(start);
         if (chip8.draw_flag)
-        {   
-            if(elapsed_time * 1000 < delay){
-                chip8.draw_flag = 0;
-                chip8_draw_screen(&chip8, renderer, texture);
-            } 
+        {
+
+            chip8.draw_flag = 0;
+            chip8_draw_screen(&chip8, renderer, texture);
         }
     }
 
     // Cleanup
+    Mix_FreeChunk(beep);
+    Mix_CloseAudio();
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

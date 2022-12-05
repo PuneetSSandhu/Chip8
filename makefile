@@ -1,7 +1,7 @@
 # Link SDL2
 CC = gcc
 CFLAGS = -Wextra -Werror -pedantic -std=c99 -g
-LDFLAGS = -lSDL2 -lSDL2_ttf
+LDFLAGS = -lSDL2 -lSDL2_mixer
 
 chip8: chip8.o
 	$(CC) $(CFLAGS) -o chip8 chip8.o $(LDFLAGS)

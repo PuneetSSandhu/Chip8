@@ -18,6 +18,8 @@ typedef unsigned short int WORD; // 16 bits/2 bytes
 #define WIDTH 64
 #define HEIGHT 32
 
+#define fps 60
+
 // Stack
 typedef struct Stack{
     WORD stack[STACK];
@@ -67,3 +69,17 @@ const BYTE chip8_fontset[80] = {
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
+
+// DEBUGGING FUNCTIONS
+void GFX_DEBUG(CHIP8 *chip8)
+{
+    printf("GFX: \n");
+    for (int i = 0; i < HEIGHT*WIDTH; i++)
+    {
+        printf("%d ", chip8->gfx[i]);
+        if (i % 64 == 0)
+            printf("\n");
+    }
+    // enter to continue
+    // getchar();
+}

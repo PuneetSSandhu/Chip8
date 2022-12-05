@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+
 // 0NNN - call routine at NNN
 void chip8_0NNN(CHIP8 *chip8, WORD opcode)
 {
@@ -13,7 +14,6 @@ void chip8_0NNN(CHIP8 *chip8, WORD opcode)
 void chip8_00E0(CHIP8 *chip8)
 {
     memset(chip8->gfx, 0, 2048);
-    chip8->draw_flag = 1;
 }
 
 // 00EE - return from subroutine
@@ -113,7 +113,7 @@ void chip8_8XY2(CHIP8 *chip8, WORD opcode)
     BYTE Y = (opcode & 0x00F0) >> 4;
     chip8->V[X] &= chip8->V[Y];
     chip8->V[0xF] = 0;
-}   
+}
 
 // 8XY3 - set Vx to Vx ^ Vy
 void chip8_8XY3(CHIP8 *chip8, WORD opcode)
@@ -166,7 +166,6 @@ void chip8_8XY6(CHIP8 *chip8, WORD opcode)
     BYTE Y = (opcode & 0x00F0) >> 4;
     BYTE digit = chip8->V[X] & 0x1;
 
-    chip8->V[X] = chip8->V[Y];
     chip8->V[X] >>= 1;
     chip8->V[0xF] = digit;
 }
@@ -195,10 +194,8 @@ void chip8_8XYE(CHIP8 *chip8, WORD opcode)
     BYTE Y = (opcode & 0x00F0) >> 4;
     BYTE digit = (chip8->V[X] & 0x80) >> 7;
 
-    chip8->V[X] = chip8->V[Y];
     chip8->V[X] <<= 1;
     chip8->V[0xF] = digit;
-
 }
 
 // 9XY0 - skip next instruction if Vx != Vy
@@ -238,6 +235,7 @@ void chip8_DXYN(CHIP8 *chip8, WORD opcode)
     BYTE Vx = chip8->V[X] % WIDTH;
     BYTE Vy = chip8->V[Y] % HEIGHT;
     BYTE N = opcode & 0x000F;
+    chip8->V[0xF] = 0;
     BYTE newVal, spriteLine;
     int pixelIndex;
     for (int i = 0; i < N; i++)
@@ -253,15 +251,14 @@ void chip8_DXYN(CHIP8 *chip8, WORD opcode)
 
             pixelIndex = (Vx + j) + ((Vy + i) * WIDTH);
             newVal = (spriteLine >> (7 - j)) & 0x01;
-            if (newVal)
+            if (chip8->gfx[pixelIndex] == 1 && newVal == 1)
             {
-                // set VF to 1 if the new sprite overlaps with an existing sprite
-                if (chip8->gfx[pixelIndex] == 1 && newVal == 1)
-                {
-                    chip8->V[0xF] = 1;
-                }
-                chip8->gfx[pixelIndex] ^= newVal;
+                chip8->V[0xF] = 1;
+                // printf("Collision detected at (%d, %d)\n", Vx + j, Vy + i);
+                // GFX_DEBUG(chip8);
             }
+
+            chip8->gfx[pixelIndex] ^= newVal;
         }
     }
     chip8->draw_flag = 1;

@@ -1,5 +1,6 @@
 #include "chip8.h"
 
+
 void chip8_0NNN(CHIP8 *chip8, WORD opcode);
 void chip8_00E0(CHIP8 *chip8);
 void chip8_00EE(CHIP8 *chip8);
