@@ -7,7 +7,7 @@
 #include "debug.c"
 #include <time.h>
 #include <unistd.h>
-
+#include <math.h>
 // SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
@@ -254,28 +254,19 @@ void chip8_emulate_cycle(CHIP8 *chip8)
 }
 
 // Draw the screen
-void chip8_draw_screen(CHIP8 *chip8, SDL_Renderer *renderer)
+void chip8_draw_screen(CHIP8 *chip8, SDL_Renderer *renderer, SDL_Texture *texture)
 {
-    // Clear the screen
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-
-    // Draw the pixels
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    for (int y = 0; y < 32; y++)
+    uint32_t pixels[WIDTH * HEIGHT];
+    for (int i = 0; i < WIDTH * HEIGHT; i++)
     {
-        for (int x = 0; x < 64; x++)
-        {
-            if (chip8->gfx[y * 64 + x] == 1)
-            {
-                // set the pixel
-                SDL_Rect rect = {x * 10, y * 10, 10, 10};
-                SDL_RenderFillRect(renderer, &rect);
-            }
-        }
+        uint8_t pixel = chip8->gfx[i];
+        pixels[i] = pixel ? 0xFF : 0x00;
     }
 
-    // Update the screen
+    // Update SDL texture
+    SDL_UpdateTexture(texture, NULL, pixels, 64 * sizeof(Uint32));
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 }
 
@@ -295,19 +286,21 @@ int main(int argc, char *argv[])
     // Initialize SDL
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_Window *window = SDL_CreateWindow("CHIP-8 Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH * 10, HEIGHT * 10, 0);
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    SDL_RenderSetLogicalSize(renderer, WIDTH, HEIGHT);
     SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
     // Main loop
     int quit = 0;
-    int diff;
+    int delay = 6;
     chip8.memory[511] = 0x04;
+    int start, frame_time;
+    float elapsed_time, fps = 0;
     // get the current time and strore it
-    clock_t time;
     printf("Test: %d\n", chip8.memory[511]);
     while (!quit)
     {
-        time = clock() + CLOCKS_PER_SEC/3600;
+        // add time for 1/60th of a second
         // Handle events
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -365,6 +358,15 @@ int main(int argc, char *argv[])
                     break;
                 case SDLK_v:
                     chip8.key[0xF] = 1;
+                    break;
+                case SDLK_RIGHTBRACKET:
+                    delay += 1;
+                    printf("Delay: %d\n Time: %f\n", delay, elapsed_time * 1000000);
+                    break;
+                case SDLK_LEFTBRACKET:
+                    if (delay > 0)
+                        delay -= 1;
+                    printf("Delay: %d\n Time: %f\n", delay, elapsed_time * 1000000);
                     break;
                 }
                 break;
@@ -428,21 +430,22 @@ int main(int argc, char *argv[])
             }
         }
 
+        Uint64 start = SDL_GetPerformanceCounter();
+
         // Emulate cycle
         chip8_emulate_cycle(&chip8);
 
+        Uint64 end = SDL_GetPerformanceCounter();
+        elapsed_time = (end - start) / (float)SDL_GetPerformanceFrequency() * 1000;
+        fps = 1000 / elapsed_time;
+        SDL_Delay(delay);
         // Draw the screen
         if (chip8.draw_flag)
-        {
-            chip8_draw_screen(&chip8, renderer);
-            chip8.draw_flag = 0;
-        }
-
-        // Delay
-        diff = clock() - time;
-        if (diff > 0)
-        {
-            SDL_Delay(diff/60);
+        {   
+            if(elapsed_time * 1000 < delay){
+                chip8.draw_flag = 0;
+                chip8_draw_screen(&chip8, renderer, texture);
+            } 
         }
     }
 

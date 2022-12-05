@@ -10,5 +10,9 @@ if [ $# -eq 1 ]; then
    if [ $1 = "d" ]; then
       make
       gdb --args ./chip8 roms/INVADERS
+   fi 
+   if [ $1 = "t" ]; then
+      make
+      ./chip8 roms/TEST
    fi
 fi
