@@ -41,9 +41,9 @@ void cap_fps(Uint32 start)
     //     printf("1000/fps = %d\n", 1000/fps);
     //     printf("SDL_GetTicks() - start = %d\n", SDL_GetTicks() - start);
     //     SDL_Delay(100);
-    if (100/ fps > SDL_GetTicks() - start)
+    if (200/ fps > SDL_GetTicks() - start)
     {
-        SDL_Delay(100/ fps - (SDL_GetTicks() - start));
+        SDL_Delay(200/ fps - (SDL_GetTicks() - start));
     }
 }
 
@@ -76,9 +76,6 @@ void chip8_init(CHIP8 *chip8)
     // load the fontset
     memset(&chip8->memory[0], 0, 80);
     memcpy(&chip8->memory[0], chip8_fontset, 80);
-
-    // Print initialization message
-    printf("CHIP8 initialized\n");
 }
 
 // Load the ROM into memory
@@ -274,12 +271,11 @@ void chip8_draw_screen(CHIP8 *chip8, SDL_Renderer *renderer, SDL_Texture *textur
     uint32_t pixels[WIDTH * HEIGHT];
     for (int i = 0; i < WIDTH * HEIGHT; i++)
     {
-        uint8_t pixel = chip8->gfx[i];
-        pixels[i] = (0x00FFFFFF * pixel) | 0xFF000000;
+        pixels[i] = (0x00FFFFFF * chip8->gfx[i]) | 0xFF000000;
     }
 
     // Update SDL texture
-    SDL_UpdateTexture(texture, NULL, pixels, 64 * sizeof(Uint32));
+    SDL_UpdateTexture(texture, NULL, pixels, WIDTH * sizeof(Uint32));
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 }
@@ -310,10 +306,8 @@ int main(int argc, char *argv[])
     Mix_VolumeChunk(beep, MIX_MAX_VOLUME/5);
     // Main loop
     int quit = 0;
-    chip8.memory[511] = 0x04;
     int start;
     // get the current time and strore it
-    printf("Test: %d\n", chip8.memory[511]);
     while (!quit)
     {
         // add time for 1/60th of a second

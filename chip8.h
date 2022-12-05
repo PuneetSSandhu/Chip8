@@ -74,9 +74,9 @@ const BYTE chip8_fontset[80] = {
 void GFX_DEBUG(CHIP8 *chip8)
 {
     printf("GFX: \n");
-    for (int i = 0; i < HEIGHT*WIDTH; i++)
+    for (int i = 1; i < HEIGHT*WIDTH+1; i++)
     {
-        printf("%d ", chip8->gfx[i]);
+        printf("%d  ", chip8->gfx[i-1]);
         if (i % 64 == 0)
             printf("\n");
     }

@@ -14,6 +14,7 @@ void chip8_0NNN(CHIP8 *chip8, WORD opcode)
 void chip8_00E0(CHIP8 *chip8)
 {
     memset(chip8->gfx, 0, 2048);
+    chip8->draw_flag = 1;
 }
 
 // 00EE - return from subroutine
@@ -151,11 +152,11 @@ void chip8_8XY5(CHIP8 *chip8, WORD opcode)
 
     if (chip8->V[X] < chip8->V[Y])
     {
-        chip8->V[0xF] = 0;
+        chip8->V[0xF] = 1;
     }
     else
     {
-        chip8->V[0xF] = 1;
+        chip8->V[0xF] = 0;
     }
 }
 
@@ -250,15 +251,13 @@ void chip8_DXYN(CHIP8 *chip8, WORD opcode)
             }
 
             pixelIndex = (Vx + j) + ((Vy + i) * WIDTH);
-            newVal = (spriteLine >> (7 - j)) & 0x01;
-            if (chip8->gfx[pixelIndex] == 1 && newVal == 1)
-            {
-                chip8->V[0xF] = 1;
-                // printf("Collision detected at (%d, %d)\n", Vx + j, Vy + i);
-                // GFX_DEBUG(chip8);
+            newVal =((spriteLine & (0x80 >> j)) >> (7 - j));
+            if(newVal != 0){
+                chip8->gfx[pixelIndex] ^= newVal;
+                if(chip8->gfx[pixelIndex] == 0){
+                    chip8->V[0xF] = 1;
+                }
             }
-
-            chip8->gfx[pixelIndex] ^= newVal;
         }
     }
     chip8->draw_flag = 1;
@@ -326,7 +325,8 @@ void chip8_FX1E(CHIP8 *chip8, WORD opcode)
 void chip8_FX29(CHIP8 *chip8, WORD opcode)
 {
     BYTE X = (opcode & 0x0F00) >> 8;
-    chip8->I = chip8->memory[(chip8->V[X] * 5)];
+    chip8->I = chip8->V[X] * 5;
+
 }
 
 // FX33 - store the binary-coded decimal representation of Vx at I, I+1, I+2
