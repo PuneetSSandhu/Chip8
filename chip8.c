@@ -9,9 +9,9 @@
 #include <math.h>
 // SDL2
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_mixer.h>
+// #include <SDL2/SDL_mixer.h>
 
-Mix_Chunk *beep;
+// Mix_Chunk *beep;
 
 // Stack functions
 void stack_push(Stack *stack, WORD value)
@@ -254,10 +254,10 @@ void chip8_emulate_cycle(CHIP8 *chip8)
     }
     if (chip8->sound_timer > 0)
     {
-        if (chip8->sound_timer == 1)
-        {
-            Mix_PlayChannel(-1, beep, 0);
-        }
+        // if (chip8->sound_timer == 1)
+        // {
+        //     Mix_PlayChannel(-1, beep, 0);
+        // }
         chip8->sound_timer--;
     }
 }
@@ -301,9 +301,9 @@ int main(int argc, char *argv[])
     SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
     
     // Initialize audio
-    Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 1, 4096);
-    beep = Mix_LoadWAV("beep.wav");
-    Mix_VolumeChunk(beep, MIX_MAX_VOLUME/5);
+    // Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 1, 4096);
+    // beep = Mix_LoadWAV("beep.wav");
+    // Mix_VolumeChunk(beep, MIX_MAX_VOLUME/5);
     // Main loop
     int quit = 0;
     int start;
@@ -436,18 +436,18 @@ int main(int argc, char *argv[])
         // Emulate cycle
         chip8_emulate_cycle(&chip8);
 
-        cap_fps(start);
         if (chip8.draw_flag)
         {
-
             chip8.draw_flag = 0;
             chip8_draw_screen(&chip8, renderer, texture);
+            cap_fps(start);
+
         }
     }
 
     // Cleanup
-    Mix_FreeChunk(beep);
-    Mix_CloseAudio();
+    // Mix_FreeChunk(beep);
+    // Mix_CloseAudio();
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
